@@ -10,6 +10,7 @@
     <div class="posts" v-for="(item,index) in post.data" :key="index">
       <!-- 标题 -->
       <div class="title">{{item.title}}</div>
+
       <!-- 时间 和 阅读量-->
       <div class="timeAndNum">
         <div class="time">
@@ -21,6 +22,7 @@
           <span>{{item.watch}}</span>
         </div>
       </div>
+
       <!-- 文章内容 -->
       <div class="content" v-html="item.content"></div>
 
@@ -65,16 +67,23 @@
           <!-- 上传图片 -->
           <div class="file">
             <el-upload
-              class="avatar-uploader"
-              action="https://jsonplaceholder.typicode.com/posts/"
-              :show-file-list="true"
+              :limit="1"
+              action="http://127.0.0.1:11337/upload"
+              list-type="picture-card"
+              :on-preview="handlePictureCardPreview"
+              :on-remove="handleRemove"
+              :headers="{ Authorization: `Bearer ${token}` }"
             >
-              <img v-if="imageUrl" class="avatar" />
-              <i v-else class="el-icon-plus avatar-uploader-icon"></i>
+              <i class="el-icon-plus"></i>
             </el-upload>
+            <el-dialog :visible.sync="dialogVisible" size="tiny">
+              <img width="100%" :src="dialogImageUrl" alt />
+            </el-dialog>
           </div>
+
+          <!-- 点击提交 -->
           <div class="subBtn">
-            <el-button type="primary" size="mini">提交</el-button>
+            <el-button type="primary" size="mini" @click="submitCommetns">提交</el-button>
           </div>
         </div>
       </div>
@@ -93,18 +102,20 @@
             <div class="user">
               <!-- 用户名，发表时间 -->
               <div class="userInfo">
+                <img :src="$axios.defaults.baseURL+item.account.defaultAvatar" alt />
                 {{item.account.nickname}}
-                <span>{{item.created_at}}</span>
+                <span>{{item.created_at | dateformat}}</span>
               </div>
               <!-- 回复层级 -->
-              <span>1</span>
+              <span>{{item.level}}</span>
             </div>
             <!-- 评论内容 -->
             <div class="commentsContent">{{item.content}}</div>
             <!-- 评论的图片 -->
             <div class="commentsImg" v-if="item.pics.length !== 0">评论图片展示</div>
 
-            <comments v-if="item.parent"></comments>
+            <!-- 调用嵌套评论组件 -->
+            <comments v-if="item.parent" :comment="item.parent"></comments>
 
             <!-- 回复 -->
             <div class="replay">
@@ -113,12 +124,27 @@
           </div>
         </div>
       </div>
+
+      <!-- 评论分页器 -->
+      <div class="block">
+        <el-pagination
+          @size-change="handleSizeChange"
+          @current-change="handleCurrentChange"
+          :current-page="currentPage"
+          :page-sizes="[2, 4, 6, 8]"
+          :page-size="pageSize"
+          layout="total, sizes, prev, pager, next, jumper"
+          :total="total"
+        ></el-pagination>
+      </div>
     </div>
   </div>
 </template>
 
 <script>
 import comments from "@/components/post/comments";
+import dateformat from "../../plugins/filters";
+
 export default {
   components: { comments },
   props: {
@@ -137,26 +163,58 @@ export default {
       // 回复的显示与隐藏状态
       isShow: false,
       // 评论列表
-      commentsList: ""
+      commentsList: "",
+      // 当前页码
+      currentPage: 1,
+      // 总条数
+      total: 0,
+      // 页容量
+      pageSize: 2,
+      dialogImageUrl: "",
+      dialogVisible: false
     };
   },
   mounted() {
-    console.log(this.post);
-    console.log(this.likes);
-    // 获取当前文章Id
-    let id = this.post.data[0].id;
-    // 发送请求，获取文章的评论列表
-    this.$axios
-      .get("/posts/comments", { params: { post: this.id } })
-      .then(res => {
-        // console.log(res);
-        if (res.status === 200) {
-          this.commentsList = res.data;
-          console.log(this.commentsList);
-        }
-      });
+    // console.log(this.post);
+    // console.log(this.post.data[0].comments.length);
+    // console.log(this.likes);
+    this.init();
+  },
+  watch: {
+    // 监听文章id的变化，刷新页面数据
+    post(newN, oldN) {
+      // 刷新页面
+      this.init();
+      // console.log(this.id);
+    }
   },
   methods: {
+    // 获取评论列表数据
+    init() {
+      // 获取当前文章Id
+      // console.log(this.post);
+      console.log(this.post.data[0].comments.length);
+      let id = this.post.data[0].id;
+      // console.log(id);
+      // 发送请求，获取文章的评论列表
+      this.$axios
+        .get("/posts/comments", {
+          params: {
+            post: id,
+            _limit: this.pageSize,
+            _start: (this.currentPage - 1) * this.pageSize
+          }
+        })
+        .then(res => {
+          // console.log(res);
+          if (res.status === 200) {
+            this.commentsList = res.data;
+            console.log(this.commentsList);
+            // 评论总条数;
+            this.total = res.data.total;
+          }
+        });
+    },
     // 点击收藏文章
     start(id) {
       // 发起收藏文章请求
@@ -198,7 +256,61 @@ export default {
     // 鼠标移出，隐藏回复
     mouseLeave() {
       this.isShow = false;
+    },
+    // 改变页容量
+    handleSizeChange(val) {
+      console.log(`每页 ${val} 条`);
+      this.pageSize = val;
+      this.init();
+    },
+    // 改变页码
+    handleCurrentChange(val) {
+      console.log(`当前页: ${val}`);
+      this.currentPage = val;
+      this.init();
+    },
+    handleRemove(file, fileList) {
+      console.log(file, fileList);
+    },
+    handlePictureCardPreview(file) {
+      this.dialogImageUrl = file.url;
+      this.dialogVisible = true;
+      console.log(this.dialogImageUrl);
+    },
+
+    // 提交评论
+    submitCommetns() {
+      if (this.textarea.trim().length !== 0) {
+        let commentForm = {
+          // 评论内容
+          content: this.textarea,
+          // 文章id
+          post: this.post.data[0].id
+        };
+        console.log(commentForm);
+        // 发起提交评论的请求
+        this.$axios
+          .post("/comments", commentForm, {
+            headers: { Authorization: `Bearer ${this.token}` }
+          })
+          .then(res => {
+            console.log(res);
+            if (res.status === 200) {
+              this.$message.success(res.data.message);
+              // 清空文本内容
+              this.textarea = "";
+              // 刷新评论页
+              this.init();
+            }
+          });
+      } else {
+        this.$message.warning("评论内容不能为空");
+      }
     }
+  },
+  filters: {
+    // 时间过滤器
+    dateformat
   }
 };
 </script>
@@ -250,6 +362,10 @@ export default {
   }
 }
 
+.postsCommentsLists {
+  margin-bottom: 15px;
+}
+
 .comment {
   .commentTitle {
     padding: 15px 0;
@@ -262,28 +378,10 @@ export default {
   }
 }
 
-/deep/.avatar-uploader .el-upload {
-  border: 1px dashed #d9d9d9;
-  border-radius: 6px;
-  cursor: pointer;
-  position: relative;
-  overflow: hidden;
-}
-/deep/.avatar-uploader .el-upload:hover {
-  border-color: #409eff;
-}
-/deep/.avatar-uploader-icon {
-  font-size: 28px;
-  color: #8c939d;
-  width: 100px;
-  height: 100px;
-  line-height: 100px;
-  text-align: center;
-}
-/deep/.avatar {
-  width: 100px;
-  height: 100px;
-  display: block;
+/deep/.el-upload--picture-card {
+  width: 120px;
+  height: 120px;
+  line-height: 120px;
 }
 
 .list {
@@ -304,6 +402,16 @@ export default {
     padding-bottom: 10px;
     span {
       color: #999;
+      margin-left: 5px;
+    }
+    .userInfo {
+      display: flex;
+      img {
+        width: 16px;
+        height: 16px;
+        border-radius: 50%;
+        margin-right: 5px;
+      }
     }
   }
   .commentsContent {
@@ -311,6 +419,7 @@ export default {
   }
   .replay {
     height: 20px;
+    line-height: 29px;
     font-size: 12px;
     text-align: right;
     a {

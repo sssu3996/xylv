@@ -43,10 +43,10 @@ export default {
     };
   },
   mounted() {
-    console.log(this.id);
+    // console.log(this.id);
     this.init();
     // 发起获取推荐文章的请求，获取推荐文章数据
-    console.log(this.$route.query.id);
+    // console.log(this.$route.query.id);
     this.$axios
       .get("/posts/recommend", { params: { id: this.id } })
       .then(result => {
@@ -68,10 +68,10 @@ export default {
     init() {
       // 发起获取文章数据的请求
       this.$axios.get("/posts", { params: { id: this.id } }).then(res => {
-        console.log(res);
+        // console.log(res);
         if (res.status === 200) {
           this.postDetails = res.data;
-          console.log(this.postDetails);
+          // console.log(this.postDetails);
         }
       });
     },

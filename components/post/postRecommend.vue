@@ -1,5 +1,5 @@
 <template>
-  <!-- 推荐文章组件 -->
+  <!-- 推荐文章组件 (相关攻略)-->
   <div class="recommend">
     <div
       class="list"
@@ -13,7 +13,7 @@
       <div class="content">
         <div class="postsTitle">{{item.title}}</div>
         <div class="date">
-          {{item.created_at}}&nbsp;&nbsp;
+          {{item.created_at | dateformat}}&nbsp;&nbsp;
           阅读:
           <span>{{item.watch}}</span>
         </div>
@@ -23,6 +23,7 @@
 </template>
 
 <script>
+import dateformat from "../../plugins/filters";
 export default {
   props: {
     recommends: {
@@ -39,6 +40,10 @@ export default {
       this.$emit("recommendsId", id);
       this.$router.push("/post/detail?id=" + id);
     }
+  },
+  filters: {
+    // 时间过滤器
+    dateformat
   }
 };
 </script>

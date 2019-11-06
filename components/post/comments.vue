@@ -6,16 +6,20 @@
       <div class="user">
         <!-- 用户名，发表时间 -->
         <div class="userInfo">
-          1111
-          <span>10202</span>
+          <img :src="$axios.defaults.baseURL+comment.account.defaultAvatar" alt />
+          {{comment.nickname}}
+          <span>{{comment.created_at | dateformat}}</span>
         </div>
         <!-- 回复层级 -->
-        <span>1</span>
+        <span>{{comment.level}}</span>
       </div>
       <!-- 评论内容 -->
-      <div class="commentsContent">内容</div>
+      <div class="commentsContent">{{comment.content}}</div>
       <!-- 评论的图片 -->
-      <div class="commentsImg">评论图片展示</div>
+      <div class="commentsImg" v-if="comment.pics.length !== 0">评论图片展示</div>
+
+      <!-- 递归 -->
+      <comments v-if="comment.parent" :comment="comment.parent"></comments>
 
       <!-- 回复 -->
       <div class="replay">
@@ -26,9 +30,16 @@
 </template>
 
 <script>
+import dateformat from "../../plugins/filters";
+
 export default {
+  name: "comments",
   props: {
-    //
+    //评论列表
+    comment: {
+      type: Object,
+      default: {}
+    }
   },
   data() {
     return {
@@ -38,7 +49,21 @@ export default {
     };
   },
   mounted() {
-    // console.log(this.id);
+    console.log(this.comment);
+  },
+  methods: {
+    //   鼠标移入，显示回复按钮
+    mouseOver() {
+      this.isShow = true;
+    },
+    // 鼠标移出，隐藏回复
+    mouseLeave() {
+      this.isShow = false;
+    }
+  },
+  filters: {
+    // 时间过滤器
+    dateformat
   }
 };
 </script>
@@ -62,6 +87,16 @@ export default {
     padding-bottom: 10px;
     span {
       color: #999;
+      margin-left: 5px;
+    }
+    .userInfo {
+      display: flex;
+      img {
+        width: 16px;
+        height: 16px;
+        border-radius: 50%;
+        margin-right: 5px;
+      }
     }
   }
   .commentsContent {
@@ -69,6 +104,7 @@ export default {
   }
   .replay {
     height: 20px;
+    line-height: 29px;
     font-size: 12px;
     text-align: right;
     a {
