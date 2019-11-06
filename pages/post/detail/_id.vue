@@ -71,7 +71,7 @@ export default {
         // console.log(res);
         if (res.status === 200) {
           this.postDetails = res.data;
-          // console.log(this.postDetails);
+          console.log(this.postDetails);
         }
       });
     },

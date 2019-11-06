@@ -16,14 +16,21 @@
       <!-- 评论内容 -->
       <div class="commentsContent">{{comment.content}}</div>
       <!-- 评论的图片 -->
-      <div class="commentsImg" v-if="comment.pics.length !== 0">评论图片展示</div>
+      <div class="commentsImg" v-if="comment.pics.length !== 0">
+        <img
+          :src="$axios.defaults.baseURL+imgs.url"
+          alt
+          v-for="(imgs,index1) in comment.pics"
+          :key="index1"
+        />
+      </div>
 
       <!-- 递归 -->
       <comments v-if="comment.parent" :comment="comment.parent"></comments>
 
       <!-- 回复 -->
       <div class="replay">
-        <a href="#" v-show="isShow">回复</a>
+        <a href="javascript:void(0)" v-show="isShow" @click="replayIt">回复</a>
       </div>
     </div>
   </div>
@@ -31,6 +38,7 @@
 
 <script>
 import dateformat from "../../plugins/filters";
+import bus from "../../plugins/eventBus";
 
 export default {
   name: "comments",
@@ -59,6 +67,12 @@ export default {
     // 鼠标移出，隐藏回复
     mouseLeave() {
       this.isShow = false;
+    },
+    replayIt() {
+      // this.$emit("sendCommentsInfo");
+      // 发射总线事件,传递给父组件评论的数据
+      // 直接发射事件的话,会导致递归组件的数据发送到当前组件页中
+      bus.$emit("sendCommentsInfo", this.comment);
     }
   },
   filters: {
@@ -74,6 +88,7 @@ export default {
   border-bottom: 1px dashed #ccc;
   border-top: none;
   padding: 10px;
+  margin-top: 10px;
   &:first-child {
     border-top: 1px solid #ccc;
   }
@@ -114,6 +129,18 @@ export default {
         text-decoration: underline;
       }
     }
+  }
+}
+.commentsImg {
+  display: flex;
+  img {
+    display: block;
+    width: 100px;
+    height: 100px;
+    border: 1px dashed #eee;
+    margin-right: 10px;
+    box-sizing: border-box;
+    padding: 5px;
   }
 }
 </style>

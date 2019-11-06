@@ -32,7 +32,7 @@
           <i class="iconfont iconpinglun"></i>
           <p>
             评论(
-            <span>{{item.comments.length}}</span> )
+            <span>{{total}}</span> )
           </p>
         </div>
 
@@ -58,6 +58,18 @@
       <!-- 发表评论 -->
       <div class="comment">
         <div class="commentTitle">评论</div>
+
+        <!-- 显示回复的评论用户 -->
+        <div class="replayUser" style="margin-bottom:10px">
+          <el-tag
+            closable
+            :disable-transitions="false"
+            type="info"
+            @close="handleClose"
+            v-if="dynamicTags.length > 0 "
+          >@{{dynamicTags[0].account.nickname}}</el-tag>
+        </div>
+
         <!-- 评论内容 -->
         <div class="commentsContent">
           <el-input type="textarea" :rows="2" placeholder="说点什么吧..." v-model="textarea"></el-input>
@@ -67,12 +79,15 @@
           <!-- 上传图片 -->
           <div class="file">
             <el-upload
-              :limit="1"
+              name="files"
+              :limit="3"
               action="http://127.0.0.1:11337/upload"
               list-type="picture-card"
               :on-preview="handlePictureCardPreview"
               :on-remove="handleRemove"
-              :headers="{ Authorization: `Bearer ${token}` }"
+              :on-success="uploadSuccess"
+              :on-exceed="overLimit"
+              ref="uploads"
             >
               <i class="el-icon-plus"></i>
             </el-upload>
@@ -112,14 +127,21 @@
             <!-- 评论内容 -->
             <div class="commentsContent">{{item.content}}</div>
             <!-- 评论的图片 -->
-            <div class="commentsImg" v-if="item.pics.length !== 0">评论图片展示</div>
+            <div class="commentsImg" v-if="item.pics.length !== 0">
+              <img
+                :src="$axios.defaults.baseURL+imgs.url"
+                alt
+                v-for="(imgs,index1) in item.pics"
+                :key="index1"
+              />
+            </div>
 
             <!-- 调用嵌套评论组件 -->
             <comments v-if="item.parent" :comment="item.parent"></comments>
 
             <!-- 回复 -->
             <div class="replay">
-              <a href="#" v-show="isShow">回复</a>
+              <a href="javascript:void(0)" v-show="isShow" @click="replayUserComments(item)">回复</a>
             </div>
           </div>
         </div>
@@ -144,6 +166,7 @@
 <script>
 import comments from "@/components/post/comments";
 import dateformat from "../../plugins/filters";
+import bus from "../../plugins/eventBus";
 
 export default {
   components: { comments },
@@ -170,15 +193,24 @@ export default {
       total: 0,
       // 页容量
       pageSize: 2,
+      // 图片预览地址
       dialogImageUrl: "",
-      dialogVisible: false
+      // 上传图片预览
+      dialogVisible: false,
+      // 上传的图片数组
+      imgLIst: [],
+      // tag标签数组
+      dynamicTags: []
     };
   },
   mounted() {
-    // console.log(this.post);
-    // console.log(this.post.data[0].comments.length);
-    // console.log(this.likes);
+    // 初始化
     this.init();
+    // 接收评论组件发射回来的总线事件
+    // 赋值给tag标签数组
+    bus.$on("sendCommentsInfo", commentInfo => {
+      this.dynamicTags = [commentInfo];
+    });
   },
   watch: {
     // 监听文章id的变化，刷新页面数据
@@ -206,7 +238,7 @@ export default {
           }
         })
         .then(res => {
-          // console.log(res);
+          console.log(res);
           if (res.status === 200) {
             this.commentsList = res.data;
             console.log(this.commentsList);
@@ -269,25 +301,40 @@ export default {
       this.currentPage = val;
       this.init();
     },
+    // 移除图片
     handleRemove(file, fileList) {
       console.log(file, fileList);
     },
+    // 图片预览
     handlePictureCardPreview(file) {
       this.dialogImageUrl = file.url;
       this.dialogVisible = true;
-      console.log(this.dialogImageUrl);
     },
-
+    // 图片上传成功
+    uploadSuccess(res, file, fileList) {
+      // console.log(res);
+      // 把图片id放到数组里面
+      this.imgLIst.push(res[0].id);
+      // console.log(this.imgLIst);
+    },
+    // 图片数量超额
+    overLimit() {
+      this.$message.warning("上传的图片超出数量");
+    },
     // 提交评论
     submitCommetns() {
       if (this.textarea.trim().length !== 0) {
+        console.log(this.imgLIst);
         let commentForm = {
           // 评论内容
           content: this.textarea,
           // 文章id
-          post: this.post.data[0].id
+          post: this.post.data[0].id,
+          // 图片列表
+          pics: this.imgLIst,
+          // 回复id
+          follow: this.dynamicTags[0] && this.dynamicTags[0].id
         };
-        console.log(commentForm);
         // 发起提交评论的请求
         this.$axios
           .post("/comments", commentForm, {
@@ -299,6 +346,11 @@ export default {
               this.$message.success(res.data.message);
               // 清空文本内容
               this.textarea = "";
+              // console.log(this.$refs.uploads[0]);
+              // 清空页面文件图片
+              this.$refs.uploads[0].clearFiles();
+              // 清空存储图片的数组
+              this.imgLIst = [];
               // 刷新评论页
               this.init();
             }
@@ -306,6 +358,18 @@ export default {
       } else {
         this.$message.warning("评论内容不能为空");
       }
+    },
+    // 关闭tag标签
+    handleClose() {
+      // this.dynamicTags.splice(this.dynamicTags.indexOf(tag), 1);
+      // 清空数组内容
+      this.dynamicTags = [];
+    },
+    // 点击回复评论
+    replayUserComments(commentInfo) {
+      // 获取评论的对象给该数组,发送回复评论请求时可获得id
+      this.dynamicTags = [commentInfo];
+      console.log(this.dynamicTags);
     }
   },
   filters: {
@@ -382,6 +446,24 @@ export default {
   width: 120px;
   height: 120px;
   line-height: 120px;
+}
+
+/deep/.el-upload-list--picture-card .el-upload-list__item {
+  width: 120px;
+  height: 120px;
+}
+
+.commentsImg {
+  display: flex;
+  img {
+    display: block;
+    width: 100px;
+    height: 100px;
+    border: 1px dashed #eee;
+    margin-right: 10px;
+    box-sizing: border-box;
+    padding: 5px;
+  }
 }
 
 .list {
