@@ -13,8 +13,20 @@
       <el-col :span="16">
         <div class="grid-content bg-purple">
           <div>搜索部分</div>
-          <postsLIst v-if="postsList.total" :postsList="postsList"></postsLIst>
-          <div>页码</div>
+          <!-- 文章列表 -->
+          <postsLIst v-if="postsList[0]" :postsList="postsList"></postsLIst>
+          <!-- 分页 -->
+          <div class="block" style="margin: 10px">
+            <el-pagination
+              @size-change="handleSizeChange"
+              @current-change="handleCurrentChange"
+              :current-page="page.currentPage"
+              :page-sizes="[2, 4, 6, 8]"
+              :page-size="page.pageSize"
+              layout="total, sizes, prev, pager, next, jumper"
+              :total="page.total"
+            ></el-pagination>
+          </div>
         </div>
       </el-col>
     </el-row>
@@ -29,7 +41,15 @@ export default {
   components: { cityNavigation, postsLIst },
   data() {
     return {
-      postsList: {}
+      postsList: [],
+      page: {
+        // 当前页码
+        currentPage: 1,
+        // 当前页容量
+        pageSize: 2,
+        // 总数
+        total: 0
+      }
     };
   },
   watch: {
@@ -50,10 +70,31 @@ export default {
       // 获取文章列表数据
       this.$axios.get("/posts" + city).then(res => {
         if (res.status === 200) {
-          this.postsList = res.data;
+          console.log(res.data);
+          // 获取文章总数
+          this.page.total = res.data.total;
+          // 分页操作
+          this.postsList = res.data.data.slice(
+            (this.page.currentPage - 1) * this.page.pageSize,
+            this.page.currentPage * this.page.pageSize
+          );
           console.log(this.postsList);
         }
       });
+    },
+    // 改变当前页容量
+    handleSizeChange(val) {
+      console.log(`每页 ${val} 条`);
+      this.page.pageSize = val;
+      // 刷新页面
+      this.init();
+    },
+    // 改变当前页码
+    handleCurrentChange(val) {
+      console.log(`当前页: ${val}`);
+      this.page.currentPage = val;
+      // 刷新页面
+      this.init();
     }
   }
 };

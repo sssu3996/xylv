@@ -1,7 +1,7 @@
 <template>
   <!-- 文章列表页结构-->
   <div class="postsLIst">
-    <div v-for="(item,index) in postsList.data" :key="index">
+    <div v-for="(item,index) in postsList" :key="index">
       <!-- 三张图的结构 -->
       <div class="threeImgs" v-if="item.images.length >= 3">
         <!-- 标题 -->
@@ -117,8 +117,8 @@
 export default {
   props: {
     postsList: {
-      type: Object,
-      default: {}
+      type: Array,
+      default: []
     }
   },
   mounted() {
